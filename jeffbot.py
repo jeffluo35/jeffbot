@@ -12,8 +12,8 @@ ircchannel = "##powder-bots"
 nick = "Jeffbot"
 user = "Jeff"
 
-global data
 global ircsock
+
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Send data to the server, but also write it to stdout
@@ -37,8 +37,10 @@ def pong():
 def read(bytes):
 	rawdata = ircsock.recv(bytes)
 	print(rawdata)
+	global data
+	global datasplit
 	data = rawdata.strip('\n\r')
-	datasplit = re.split("[\:\n]", data)	
+	datasplit = re.split("[\:\n]", data)
 
 # Initially join a channel
 def initjoin(chan):
@@ -47,8 +49,11 @@ def initjoin(chan):
 
 def respond(chan, what, response):
 	if (what in datasplit) and (data.find("PRIVMSG") != -1) and (data.find(chan) != -1):
-		print(data.find(what))
 		send("PRIVMSG "+ chan +" :"+ response +"\n")
+
+def respondraw(chan, what, raw):
+	if (what in datasplit) and (data.find("PRIVMSG") != -1 ) and (data.find(chan) != -1):
+		send(raw +"\n")
 
 def main():
 	ircsock.connect((ircserver, 6667))
@@ -62,6 +67,7 @@ def main():
 		if (data != None):
 			pong()
 			respond(ircchannel, "moo", "moooo")
+			respondraw(ircchannel, ">lol", "KICK "+
 		else:
 			continue
 main()
