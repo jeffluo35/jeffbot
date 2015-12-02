@@ -11,7 +11,6 @@ ircserver = "irc.freenode.net"
 ircchannel = "##powder-bots"
 nick = "Jeffbot"
 user = "Jeff"
-delay = 0.1 # Set this lower if you don't care about high cpu usage
 
 global ircsock
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,6 +32,7 @@ def pong():
 		i = source.index("PING ")
 		i = i + 1
 		send("PONG :"+ source[i] +"\n")
+
 # Recieve data from server
 def read(bytes):
 	rawdata = ircsock.recv(bytes)
@@ -46,7 +46,9 @@ def initjoin(chan):
 	join(chan)
 
 def respond(chan, what, response):
-	if (data.find(what) != -1) and (data.find("PRIVMSG") != -1) and (data.find(chan) != -1):
+	source = re.split("[\:\n]", data)
+	if (what in source) and (data.find("PRIVMSG") != -1) and (data.find(chan) != -1):
+		print(data.find(what))
 		send("PRIVMSG "+ chan +" :"+ response +"\n")
 
 def main():
@@ -62,6 +64,5 @@ def main():
 			pong()
 			respond(ircchannel, "moo", "moooo")
 		else:
-			sleep(delay)
 			continue
 main()
