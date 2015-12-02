@@ -7,10 +7,11 @@ import thread
 from time import sleep
 import re
 
-ircserver = "irc.choopa.net"
-ircchannel = "#nothing"
+ircserver = "irc.freenode.net"
+ircchannel = "##powder-bots"
 nick = "Jeffbot"
 user = "Jeff"
+delay = 0.1 # Set this lower if you don't care about high cpu usage
 
 global ircsock
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -44,6 +45,10 @@ def initjoin(chan):
 	sleep(3)
 	join(chan)
 
+def respond(chan, what, response):
+	if (data.find(what) != -1) and (data.find("PRIVMSG") != -1) and (data.find(chan) != -1):
+		send("PRIVMSG "+ chan +" :"+ response +"\n")
+
 def main():
 	ircsock.connect((ircserver, 6667))
 	print("Connected to server")
@@ -53,6 +58,10 @@ def main():
 	
 	while 1: # main loop
 		read(4096)
-		pong()
-
+		if (data != None):
+			pong()
+			respond(ircchannel, "moo", "moooo")
+		else:
+			sleep(delay)
+			continue
 main()
