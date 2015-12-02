@@ -4,16 +4,18 @@
 
 import socket
 import thread
-import time
+from time import sleep
+import re
 
-ircserver = "irc.freenode.net"
-ircchannel = "##powder-bots"
+ircserver = "irc.choopa.net"
+ircchannel = "#nothing"
 nick = "Jeffbot"
 user = "Jeff"
 
 global ircsock
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+# Send data to the server, but also write it to stdout
 def send(data):
 	ircsock.send(data)
 	data = data.strip('\n')
@@ -26,9 +28,10 @@ def join(chan):
 # Respond to pings
 def pong():
 	if (data.find("PING") != -1) and (data.find("PRIVMSG") == -1): 
-		source = data.split(":")
-		send("PONG :"+ source[1] +"\n")
-		print("PONG :"+ source[1] +"\n")
+		source = re.split("[\:\n]", data)
+		i = source.index("PING ")
+		i = i + 1
+		send("PONG :"+ source[i] +"\n")
 # Recieve data from server
 def read(bytes):
 	rawdata = ircsock.recv(bytes)
@@ -36,15 +39,20 @@ def read(bytes):
 	global data
 	data = rawdata.strip('\n\r')
 
-ircsock.connect((ircserver, 6667))
-print("Connected to server")
-send("USER "+ nick +" 0 * :"+ user +"\n")
-send("NICK "+ nick +"\n")
-time.sleep(3)
-read(4096)
-pong()
-join(ircchannel)
+# Initially join a channel
+def initjoin(chan):
+	sleep(3)
+	join(chan)
 
-while 1: # main loop
-	read(4096)
-	pong()
+def main():
+	ircsock.connect((ircserver, 6667))
+	print("Connected to server")
+	send("USER "+ nick +" 0 * :"+ user +"\n")
+	send("NICK "+ nick +"\n")
+	thread.start_new_thread(initjoin, (ircchannel,))
+	
+	while 1: # main loop
+		read(4096)
+		pong()
+
+main()
