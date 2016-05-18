@@ -5,7 +5,7 @@ import socket
 import threading
 from time import sleep
 
-ircserver = "irc.freenode.net"
+ircserver = "164.132.77.237"
 ircchannel = "##powder-bots"
 nick = "Jeffbot"
 user = "Jeff"
@@ -13,8 +13,15 @@ joinwait = 3
 readbytes = 4096
 cmdchar = "|"
 
+global proxyserver
+proxyserver = None
+# Uncomment to use proxy server
+proxyserver = "proxy.ccsd.net:80"
+
 # for testing purposes and because i'm lazy
 def runlogic(head,msg):
+	if msg == [] or head == []:
+		return
 	type = "raw"
 	chan = "none"
 	if len(head) > 1 and head[1] == "PRIVMSG":
@@ -78,7 +85,10 @@ def main():
 						if head == []:
 							i -= 1
 					i += 1
-				runlogic(head,msg)
+				try:
+					runlogic(head,msg)
+				except UnboundLocalError:
+					print("Not an IRC message. Ignoring.")
 
 # Initially join a channel
 class initjoin (threading.Thread):
@@ -90,7 +100,14 @@ class initjoin (threading.Thread):
 def start():
 	global ircsock
 	ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	ircsock.connect((ircserver, 6667))
+	global proxyserver
+	if proxyserver != None:
+		proxyserver = proxyserver.split(":")
+		ircsock.connect((proxyserver[0], int(proxyserver[1])))
+		send("CONNECT "+ircserver+":6667\n\n")
+		sleep(5)
+	else:
+		ircsock.connect((ircserver, 6667))
 	print("Connected to server")
 	send("USER "+ nick +" 0 * :"+ user +"\n")
 	send("NICK "+ nick +"\n")
@@ -99,3 +116,4 @@ def start():
 	main()
 
 start()
+
