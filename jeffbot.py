@@ -10,9 +10,12 @@ ircserver = "irc.freenode.net"
 ircchannel = "##powder-bots"
 nick = "Jeffbot"
 user = "Jeff"
+joinwait = 3
+readbytes = 4096
 
-global ircsock
-ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# for testing purposes and because i'm lazy
+def runcommands(head,msg):
+	pong(head,msg)
 
 def send(data):
 	ircsock.send(bytes(data, 'UTF-8'))
@@ -22,41 +25,46 @@ def send(data):
 def join(chan):
 	send("JOIN "+ chan +"\n")
 
-def pong():
-	if (data.find("PING") != -1) and (data.find("PRIVMSG") == -1): 
-		i = datasplit.index("PING ") + i
-		send("PONG :"+ datasplit[i] +"\n")
+def pong(head,msg):
+	if head[0] == "PING":
+		send("PONG :"+msg[0]+"\n")
 
-def read(bytes):
-	rawdata = ircsock.recv(bytes).decode('utf-8')
-	print(rawdata)
-	global data,datasplit
-	data = rawdata.strip('\n\r')
-	datasplit = re.split("[\:\n]", data)
+def main():
+	while 1:
+		rawdata = ircsock.recv(readbytes).decode('utf-8')
+		if rawdata != None:
+			print(rawdata)
+			data = re.split("[\:\n]", rawdata.strip('\n\r'))
+			i = 0
+			for thing in data:
+				if i > 1:
+					runcommands(head,msg)
+					i = 0
+				if i % 2 == 1:
+					msg = thing.split()
+				else:
+					head = thing.split()
+					if head == []:
+						i -= 1
+				i += 1
+			runcommands(head,msg)
 
 # Initially join a channel
 class initjoin (threading.Thread):
 	def run(self):
-		sleep(3)
+		sleep(joinwait)
 		join(ircchannel)
 
-def respond(chan, what, response):
-	if (what in datasplit) and (data.find("PRIVMSG") != -1) and (data.find(chan) != -1):
-		send("PRIVMSG "+ chan +" :"+ response +"\n")
-
-def main():
+# set up the connection
+def start():
+	global ircsock
+	ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	ircsock.connect((ircserver, 6667))
 	print("Connected to server")
 	send("USER "+ nick +" 0 * :"+ user +"\n")
 	send("NICK "+ nick +"\n")
 	initialjoin = initjoin()
 	initialjoin.start()
-	
-	while 1:
-		read(4096)
-		if (data != None):
-			pong()
-			respond(ircchannel, "moo", "moooo")
-		else:
-			continue
-main()
+	main()
+
+start()
