@@ -18,6 +18,29 @@ proxyserver = None
 # Uncomment to use proxy server
 proxyserver = "proxy.ccsd.net:80"
 
+class commands:
+	def echo(msg,chan):
+		del msg[0]
+		sendMsg(chan," ".join(msg))
+	def join(msg,chan):
+		try:
+			join(msg[1])
+		except IndexError:
+			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"join <channel>")
+	def part(msg,chan):
+		try:
+			part(msg[1])
+		except IndexError:
+			part(chan)
+
+class elevcommands:
+	def checkIfElevated(head):
+		if head[0] in powerusers:
+			return True
+		else:
+			return False
+
+
 # for testing purposes and because i'm lazy
 def runlogic(head,msg):
 	if msg == [] or head == []:
@@ -29,8 +52,10 @@ def runlogic(head,msg):
 		if len(msg) > 0 and msg[0].startswith(cmdchar):
 			msg[0] = msg[0].strip(cmdchar)
 			type = "cmd"
-			echo(msg,chan)
-			joincmd(msg,chan)
+			try:
+				getattr(commands,msg[0])(msg,chan)
+			except AttributeError:
+				sendMsg(chan,"Command does not exist.")
 	pong(head,msg)
 
 def send(data):
@@ -47,27 +72,10 @@ def join(chan):
 def part(chan):
 	send("PART "+chan+"\n")
 	
-def joincmd(msg,chan):
-	try:
-		if msg[0].lower() == "join":
-			join(msg[1])
-		elif msg[0].lower() == "part":
-			part(msg[1])
-	except IndexError:
-		sendMsg(chan,"Not enough arguments. Usage: <"+cmdchar+"join|part> <channel>")
-	
 def pong(head,msg):
 	if head[0] == "PING":
 		send("PONG :"+msg[0]+"\n")
 		
-def echo(msg,chan):
-	try:
-		if msg[0].lower() == "echo":
-			del msg[0]
-			sendMsg(chan," ".join(msg))
-	except IndexError:
-		sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"echo <message>")
-
 def main():
 	while 1:
 		rawdata = ircsock.recv(readbytes).decode('utf-8')
