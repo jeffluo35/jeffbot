@@ -4,6 +4,7 @@
 import socket
 import threading
 from time import sleep
+import re
 
 ircserver = "164.132.77.237"
 ircchannel = "##powder-bots"
@@ -16,9 +17,20 @@ cmdchar = "|"
 global proxyserver
 proxyserver = None
 # Uncomment to use proxy server
-proxyserver = "proxy.ccsd.net:80"
+#proxyserver = "proxy.ccsd.net:80"
 
+powerusers = ["jeffl36!~jeffl35@unaffiliated/jeffl35", "jeffl35!~jeffl35@unaffiliated/jeffl35"]
 class commands:
+	def echo(msg,chan):
+		del msg[0]
+		sendMsg(chan,"​"+" ".join(msg))
+
+class elevcommands:
+	def checkIfElevated(head):
+		if head[0] in powerusers:
+			return True
+		else:
+			return False
 	def echo(msg,chan):
 		del msg[0]
 		sendMsg(chan," ".join(msg))
@@ -33,15 +45,6 @@ class commands:
 		except IndexError:
 			part(chan)
 
-class elevcommands:
-	def checkIfElevated(head):
-		if head[0] in powerusers:
-			return True
-		else:
-			return False
-
-
-# for testing purposes and because i'm lazy
 def runlogic(head,msg):
 	if msg == [] or head == []:
 		return
@@ -53,9 +56,19 @@ def runlogic(head,msg):
 			msg[0] = msg[0].strip(cmdchar)
 			type = "cmd"
 			try:
-				getattr(commands,msg[0])(msg,chan)
+				if elevcommands.checkIfElevated(head):
+					try:
+						getattr(elevcommands,msg[0])(msg,chan)
+					except AttributeError:
+						getattr(commands,msg[0])(msg,chan)	
+				else:
+					getattr(commands,msg[0])(msg,chan)
 			except AttributeError:
-				sendMsg(chan,"Command does not exist.")
+				try:
+					getattr(elevcommands,msg[0])
+					sendMsg(chan,"You do not have the privileges to use this function!")
+				except AttributeError:
+					sendMsg(chan,"Command does not exist.")
 	pong(head,msg)
 
 def send(data):
