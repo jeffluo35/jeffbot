@@ -18,7 +18,7 @@ nick = "Jeffbot"
 user = "Jeff"
 joinwait = 3
 readbytes = 4096
-cmdchar = "#!"
+cmdchar = "|"
 
 global proxyserver
 proxyserver = None
