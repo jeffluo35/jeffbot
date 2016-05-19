@@ -8,6 +8,13 @@ import re
 
 ircserver = "164.132.77.237"
 ircchannel = "##powder-bots"
+# Make a file called "password" with your NickServ password in it
+try:
+	passfile = open("password", "r")
+	password = passfile.read()
+except:
+	password = None
+passfile.close()
 nick = "Jeffbot"
 user = "Jeff"
 joinwait = 3
@@ -34,6 +41,9 @@ class elevcommands:
 	def echo(msg,chan):
 		del msg[0]
 		sendMsg(chan," ".join(msg))
+	def echoraw(msg,chan):
+		del msg[0]
+		send(" ".join(msg)+"\n")
 	def join(msg,chan):
 		try:
 			join(msg[1])
@@ -53,7 +63,7 @@ def runlogic(head,msg):
 	if len(head) > 1 and head[1] == "PRIVMSG":
 		chan = head[2]
 		if len(msg) > 0 and msg[0].startswith(cmdchar):
-			msg[0] = msg[0].strip(cmdchar)
+			msg[0] = msg[0].strip(cmdchar).lower()
 			type = "cmd"
 			try:
 				if elevcommands.checkIfElevated(head):
@@ -130,6 +140,8 @@ def start():
 	else:
 		ircsock.connect((ircserver, 6667))
 	print("Connected to server")
+	if password != None:
+		send("PASS "+password)
 	send("USER "+ nick +" 0 * :"+ user +"\n")
 	send("NICK "+ nick +"\n")
 	initialjoin = initjoin()
