@@ -15,10 +15,12 @@ except:
 	password = None
 passfile.close()
 nick = "Jeffbot"
-user = "Jeff"
+user = "jeffbot"
+name = "Jeff"
 joinwait = 3
 readbytes = 4096
 cmdchar = "|"
+version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
 
 global proxyserver
 proxyserver = None
@@ -27,12 +29,12 @@ proxyserver = None
 
 powerusers = ["jeffl36!~jeffl35@unaffiliated/jeffl35", "jeffl35!~jeffl35@unaffiliated/jeffl35", "iovoid!~iovoid@unaffiliated/iovoid"]
 class commands:
-	def echo(msg,chan):
+	def echo(msg,chan,nick):
 		del msg[0]
 		sendMsg(chan,"​"+" ".join(msg))
-	def ping(msg,chan):
+	def ping(msg,chan,nick):
 		sendMsg(chan, "pong")
-	def pong(msg,chan):
+	def pong(msg,chan,nick):
 		sendMsg(chan, "ping")
 
 class elevcommands:
@@ -41,30 +43,35 @@ class elevcommands:
 			return True
 		else:
 			return False
-	def echo(msg,chan):
+	def echo(msg,chan,nick):
 		del msg[0]
 		sendMsg(chan," ".join(msg))
-	def echoraw(msg,chan):
+	def echoraw(msg,chan,nick):
 		del msg[0]
 		send(" ".join(msg)+"\n")
-	def join(msg,chan):
+	def join(msg,chan,nick):
 		try:
 			join(msg[1])
 		except IndexError:
 			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"join <channel>")
-	def part(msg,chan):
+	def part(msg,chan,nick):
 		try:
 			part(msg[1])
 		except IndexError:
 			part(chan)
-	def eval(msg,chan):
+	def eval(msg,chan,nick):
 		if len(msg) > 1:
 			try:
 				del msg[0]
 				sendMsg(chan,str(eval(" ".join(msg))))
 			except Exception as e:
 				sendMsg(chan,"Error: "+str(e))
-
+		
+class ctcp:
+	def version(nick):
+		global version
+		sendNotice(nick,"\x01VERSION "+version+"\x01")
+		
 def runlogic(head,msg):
 	if msg == [] or head == []:
 		return
@@ -74,21 +81,30 @@ def runlogic(head,msg):
 		chan = head[2]
 		if len(msg) > 0 and msg[0].startswith(cmdchar):
 			msg[0] = msg[0].strip(cmdchar).lower()
+			nick = head[0].split("!")[0]
 			type = "cmd"
 			try:
 				if elevcommands.checkIfElevated(head):
 					try:
-						getattr(elevcommands,msg[0])(msg,chan)
+						getattr(elevcommands,msg[0])(msg,chan,nick)
 					except AttributeError:
-						getattr(commands,msg[0])(msg,chan)	
+						getattr(commands,msg[0])(msg,chan,nick)	
 				else:
-					getattr(commands,msg[0])(msg,chan)
+					getattr(commands,msg[0])(msg,chan,nick)
 			except AttributeError:
 				try:
 					getattr(elevcommands,msg[0])
-					sendMsg(chan,"You do not have the privileges to use this function!")
+					sendMsg(chan,nick+": You do not have the privileges to use this function!")
 				except AttributeError:
-					sendMsg(chan,"Command does not exist.")
+					sendMsg(chan,nick+": Command does not exist.")
+		if len(msg) > 0 and msg[0].startswith("\x01"):
+			msg[0] = msg[0].strip("\x01").lower()
+			type = "ctcp"
+			nick = head[0].split("!")[0]
+			try:
+				getattr(ctcp,msg[0])(nick)
+			except AttributeError:
+				pass
 	pong(head,msg)
 
 def send(data):
@@ -98,6 +114,9 @@ def send(data):
 	
 def sendMsg(chan,msg):
 	send("PRIVMSG "+chan+" :"+msg+"\n")
+
+def sendNotice(nick,msg):
+	send("NOTICE "+nick+" :"+msg+"\n")
 
 def join(chan):
 	send("JOIN "+chan+"\n")
@@ -152,8 +171,8 @@ def start():
 	print("Connected to server")
 	if password != None:
 		send("PASS "+password)
-	send("USER "+ nick +" 0 * :"+ user +"\n")
-	send("NICK "+ nick +"\n")
+	send("USER "+user+" 0 * :"+name+"\n")
+	send("NICK "+nick+"\n")
 	initialjoin = initjoin()
 	initialjoin.start()
 	main()
