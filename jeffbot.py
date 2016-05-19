@@ -64,13 +64,6 @@ class elevcommands:
 				sendMsg(chan,str(eval(" ".join(msg))))
 			except Exception as e:
 				sendMsg(chan,"Error: "+str(e))
-	def exec(msg,chan):
-		if len(msg) > 1:
-			try:
-				del msg[0]
-				sendMsg(chan,str(exec(" ".join(msg))))
-			except Exception as e:
-				sendMsg(chan,"Error: "+str(e))
 
 def runlogic(head,msg):
 	if msg == [] or head == []:
