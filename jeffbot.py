@@ -4,7 +4,6 @@
 import socket
 import threading
 from time import sleep
-import re
 
 ircserver = "164.132.77.237"
 ircchannel = "##powder-bots"
@@ -19,18 +18,22 @@ nick = "Jeffbot"
 user = "Jeff"
 joinwait = 3
 readbytes = 4096
-cmdchar = "|"
+cmdchar = "#!"
 
 global proxyserver
 proxyserver = None
 # Uncomment to use proxy server
 #proxyserver = "proxy.ccsd.net:80"
 
-powerusers = ["jeffl36!~jeffl35@unaffiliated/jeffl35", "jeffl35!~jeffl35@unaffiliated/jeffl35"]
+powerusers = ["jeffl36!~jeffl35@unaffiliated/jeffl35", "jeffl35!~jeffl35@unaffiliated/jeffl35", "iovoid!~iovoid@unaffiliated/iovoid"]
 class commands:
 	def echo(msg,chan):
 		del msg[0]
 		sendMsg(chan,"​"+" ".join(msg))
+	def ping(msg,chan):
+		sendMsg(chan, "pong")
+	def pong(msg,chan):
+		sendMsg(chan, "ping")
 
 class elevcommands:
 	def checkIfElevated(head):
@@ -54,6 +57,20 @@ class elevcommands:
 			part(msg[1])
 		except IndexError:
 			part(chan)
+	def eval(msg,chan):
+		if len(msg) > 1:
+			try:
+				del msg[0]
+				sendMsg(chan,str(eval(" ".join(msg))))
+			except Exception as e:
+				sendMsg(chan,"Error: "+str(e))
+	def exec(msg,chan):
+		if len(msg) > 1:
+			try:
+				del msg[0]
+				sendMsg(chan,str(exec(" ".join(msg))))
+			except Exception as e:
+				sendMsg(chan,"Error: "+str(e))
 
 def runlogic(head,msg):
 	if msg == [] or head == []:
