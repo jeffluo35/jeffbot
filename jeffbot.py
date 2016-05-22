@@ -4,14 +4,19 @@
 import socket
 import threading
 from time import sleep
-
+import re
+try:
+	from ezzybot.util.repl import Repl
+	enablesandbox = True
+except ImportError:
+	enablesandbox = False
 ircserver = "164.132.77.237"
 ircchannel = "##powder-bots"
 # Make a file called "password" with your NickServ password in it
 try:
 	passfile = open("password", "r")
 	password = passfile.read()
-except:
+except FileNotFoundError:
 	password = None
 passfile.close()
 nick = "Jeffbot"
@@ -27,79 +32,86 @@ proxyserver = None
 # Uncomment to use proxy server
 #proxyserver = "proxy.ccsd.net:80"
 
-powerusers = ["jeffl36!~jeffl35@unaffiliated/jeffl35", "jeffl35!~jeffl35@unaffiliated/jeffl35", "iovoid!~iovoid@unaffiliated/iovoid"]
+levels = {"unaffiliated/jeffl35": 10, "unaffiliated/iovoid": 10, "unaffiliated/bowserinator": 10}
 class commands:
-	def echo(msg,chan,nick):
+	def dot(msg,chan,host):
+		sendMsg(chan,"...................................")
+	def echo(msg,chan,host):
 		del msg[0]
 		sendMsg(chan,"​"+" ".join(msg))
-	def ping(msg,chan,nick):
+	def ping(msg,chan,host):
 		sendMsg(chan, "pong")
-	def pong(msg,chan,nick):
+	def pong(msg,chan,host):
 		sendMsg(chan, "ping")
-
-class elevcommands:
-	def checkIfElevated(head):
-		if head[0] in powerusers:
-			return True
-		else:
+	def py(msg,chan,host):
+		if not enablesandbox:
+			sendMsg(chan,"Sandbox not enabled")
 			return False
-	def echo(msg,chan,nick):
-		del msg[0]
-		sendMsg(chan," ".join(msg))
-	def echoraw(msg,chan,nick):
+		if len(msg) > 1:
+			if msg[1].lower() == "init":
+				global sandbox
+				sandbox = Repl({"chan": chan, "msg": msg, "nick": nick})
+				sendMsg(chan,"Done")
+				print(sandbox)
+			else:
+				global sandbox
+				del msg[0]
+				try:
+					sendMsg(chan,sandbox.run(" ".join(msg)))
+				except SystemExit:
+					sendMsg(chan,"Definitely not doing that")
+				except Exception as e:
+					sendMsg(chan,e.__name__+": "+e)
+		else:
+			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"py <code> or "+cmdchar+"py init")
+	def echoraw(msg,chan,host):
+		if not checklvl(chan,host,10):
+			return False
 		del msg[0]
 		send(" ".join(msg)+"\n")
-	def join(msg,chan,nick):
+	def join(msg,chan,host):
+		if not checklvl(chan,host,5):
+			return False
 		try:
 			join(msg[1])
 		except IndexError:
 			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"join <channel>")
-	def part(msg,chan,nick):
+	def part(msg,chan,host):
+		if not checklvl(chan,host,5):
+			return False
 		try:
 			part(msg[1])
 		except IndexError:
 			part(chan)
-	def eval(msg,chan,nick):
+	def eval(msg,chan,host):
+		if not checklvl(chan,host,10):
+			return False
 		if len(msg) > 1:
 			try:
 				del msg[0]
 				sendMsg(chan,str(eval(" ".join(msg))))
 			except Exception as e:
-				sendMsg(chan,"Error: "+str(e))
-		
+				sendMsg(chan,e.__name__+": "+str(e))
+
 class ctcp:
 	def version(nick):
-		global version
 		sendNotice(nick,"\x01VERSION "+version+"\x01")
-		
+
 def runlogic(head,msg):
 	if msg == [] or head == []:
 		return
-	type = "raw"
 	chan = "none"
 	if len(head) > 1 and head[1] == "PRIVMSG":
 		chan = head[2]
 		if len(msg) > 0 and msg[0].startswith(cmdchar):
 			msg[0] = msg[0].strip(cmdchar).lower()
-			nick = head[0].split("!")[0]
-			type = "cmd"
+			host = re.split("[\!\@]",head[0])
 			try:
-				if elevcommands.checkIfElevated(head):
-					try:
-						getattr(elevcommands,msg[0])(msg,chan,nick)
-					except AttributeError:
-						getattr(commands,msg[0])(msg,chan,nick)	
-				else:
-					getattr(commands,msg[0])(msg,chan,nick)
+				getattr(commands,msg[0])(msg,chan,host)
 			except AttributeError:
-				try:
-					getattr(elevcommands,msg[0])
-					sendMsg(chan,nick+": You do not have the privileges to use this function!")
-				except AttributeError:
-					sendMsg(chan,nick+": Command does not exist.")
+				sendMsg(chan,nick+": Command does not exist.")
 		if len(msg) > 0 and msg[0].startswith("\x01"):
 			msg[0] = msg[0].strip("\x01").lower()
-			type = "ctcp"
 			nick = head[0].split("!")[0]
 			try:
 				getattr(ctcp,msg[0])(nick)
@@ -123,7 +135,14 @@ def join(chan):
 
 def part(chan):
 	send("PART "+chan+"\n")
-	
+
+def checklvl(chan,host,lvl):
+	if levels[host[2]] >= lvl:
+		return True
+	else:
+		sendMsg(chan,host[0]+": You do not have enough permissions to use this command.")
+		return False
+
 def pong(head,msg):
 	if head[0] == "PING":
 		send("PONG :"+msg[0]+"\n")
@@ -177,5 +196,6 @@ def start():
 	initialjoin.start()
 	main()
 
+global ircsock
 start()
 
