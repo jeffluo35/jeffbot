@@ -8,6 +8,8 @@ import re
 try:
 	from ezzybot.util.repl import Repl
 	enablesandbox = True
+	sandboxinit = False
+	sandbox = "uninitialized"
 except ImportError:
 	enablesandbox = False
 ircserver = "164.132.77.237"
@@ -49,9 +51,12 @@ class commands:
 		if len(msg) > 1:
 			if msg[1].lower() == "init":
 				global sandbox
+				global sandboxinit
 				sandbox = Repl({"chan": chan, "msg": msg, "nick": nick})
 				sendMsg(chan,"Done")
-				print(sandbox)
+				sandboxinit = True
+			elif not sandboxinit:
+				sendMsg(chan,"Sandbox not initialized. Do "+cmdchar+"py init")
 			else:
 				global sandbox
 				del msg[0]
@@ -60,7 +65,7 @@ class commands:
 				except SystemExit:
 					sendMsg(chan,"Definitely not doing that")
 				except Exception as e:
-					sendMsg(chan,e.__name__+": "+e)
+					sendMsg(chan,str(type(e).__name__)+": "+str(e))
 		else:
 			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"py <code> or "+cmdchar+"py init")
 	def echoraw(msg,chan,host):
@@ -90,7 +95,7 @@ class commands:
 				del msg[0]
 				sendMsg(chan,str(eval(" ".join(msg))))
 			except Exception as e:
-				sendMsg(chan,e.__name__+": "+str(e))
+				sendMsg(chan,type(e).__name__+": "+str(e))
 
 class ctcp:
 	def version(nick):
@@ -124,7 +129,10 @@ def send(data):
 	print(data)
 
 def sendMsg(chan,msg):
-	send("PRIVMSG "+chan+" :"+msg+"\n")
+	if msg == "":
+		send("PRIVMSG "+chan+" :None\n")
+	else:
+		send("PRIVMSG "+chan+" :"+msg+"\n")
 
 def sendNotice(nick,msg):
 	send("NOTICE "+nick+" :"+msg+"\n")
@@ -149,7 +157,7 @@ def checklvl(chan,host,lvl):
 def pong(head,msg):
 	if head[0] == "PING":
 		send("PONG :"+msg[0]+"\n")
-		
+
 def main():
 	while 1:
 		rawdata = ircsock.recv(readbytes).decode('utf-8')
