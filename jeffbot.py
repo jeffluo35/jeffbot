@@ -113,7 +113,7 @@ def runlogic(head,msg):
 			try:
 				getattr(commands,msg[0])(msg,chan,host)
 			except AttributeError:
-				sendMsg(chan,host[0]+": Command does not exist.")
+				pass
 		if len(msg) > 0 and msg[0].startswith("\x01"):
 			msg[0] = msg[0].strip("\x01").lower()
 			nick = head[0].split("!")[0]
