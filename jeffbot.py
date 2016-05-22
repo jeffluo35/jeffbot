@@ -27,7 +27,6 @@ readbytes = 4096
 cmdchar = "|"
 version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
 
-global proxyserver
 proxyserver = None
 # Uncomment to use proxy server
 #proxyserver = "proxy.ccsd.net:80"
@@ -109,7 +108,7 @@ def runlogic(head,msg):
 			try:
 				getattr(commands,msg[0])(msg,chan,host)
 			except AttributeError:
-				sendMsg(chan,nick+": Command does not exist.")
+				sendMsg(chan,host[0]+": Command does not exist.")
 		if len(msg) > 0 and msg[0].startswith("\x01"):
 			msg[0] = msg[0].strip("\x01").lower()
 			nick = head[0].split("!")[0]
@@ -123,7 +122,7 @@ def send(data):
 	ircsock.send(bytes(data, 'UTF-8'))
 	data = data.strip('\n')
 	print(data)
-	
+
 def sendMsg(chan,msg):
 	send("PRIVMSG "+chan+" :"+msg+"\n")
 
@@ -137,9 +136,13 @@ def part(chan):
 	send("PART "+chan+"\n")
 
 def checklvl(chan,host,lvl):
-	if levels[host[2]] >= lvl:
-		return True
-	else:
+	try:
+		if levels[host[2]] >= lvl:
+			return True
+		else:
+			sendMsg(chan,host[0]+": You do not have enough permissions to use this command.")
+			return False
+	except KeyError:
 		sendMsg(chan,host[0]+": You do not have enough permissions to use this command.")
 		return False
 
@@ -166,8 +169,8 @@ def main():
 					i += 1
 				try:
 					runlogic(head,msg)
-				except UnboundLocalError:
-					print("Not an IRC message. Ignoring.")
+				except UnboundLocalError as e:
+					print("Not an IRC message. Ignoring. Details: "+str(e))
 
 # Initially join a channel
 class initjoin (threading.Thread):
@@ -177,8 +180,6 @@ class initjoin (threading.Thread):
 
 # set up the connection
 def start():
-	global ircsock
-	ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	global proxyserver
 	if proxyserver != None:
 		proxyserver = proxyserver.split(":")
@@ -196,6 +197,6 @@ def start():
 	initialjoin.start()
 	main()
 
-global ircsock
+ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 start()
 
