@@ -12,6 +12,8 @@ try:
 	sandbox = "uninitialized"
 except ImportError:
 	enablesandbox = False
+# Sadly, sandboxes are humongous security issues
+enablesandbox = False
 ircserver = "164.132.77.237"
 ircchannel = "##powder-bots"
 # Make a file called "password" with your NickServ password in it
@@ -61,7 +63,10 @@ class commands:
 				global sandbox
 				del msg[0]
 				try:
-					sendMsg(chan,sandbox.run(" ".join(msg)))
+					output = sandbox.run(" ".join(msg)).split("\n")
+					del output[0]
+					for line in output:
+						sendMsg(chan,host[0]+": "+line)
 				except SystemExit:
 					sendMsg(chan,"Definitely not doing that")
 				except Exception as e:
