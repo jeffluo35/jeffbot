@@ -95,15 +95,53 @@ class commands:
 			return False
 		del msg[0]
 		send(" ".join(msg)+"\n")
+	def op(msg,chan,host):
+		if not checklvl(chan,host,5):
+			return False
+		try:
+			mode(chan,"+o",msg[1])
+		except IndexError:
+			mode(chan,"+o",host[0])
+	def deop(msg,chan,host):
+		if not checklvl(chan,host,5):
+			return False
+		try:
+			if msg[1] == ircnick:
+				sendMsg(chan,"Why would I do that?")
+				return False
+			mode(chan,"-o",msg[1])
+		except IndexError:
+			mode(chan,"-o",host[0])
+	def voice(msg,chan,host):
+		if not checklvl(chan,host,5):
+			return False
+		try:
+			mode(chan,"+v",msg[1])
+		except IndexError:
+			mode(chan,"+v",host[0])
+	def devoice(msg,chan,host):
+		if not checklvl(chan,host,5):
+			return False
+		try:
+			mode(chan,"+v",msg[1])
+		except:
+			mode(chan,"+v",host[0])
 	def kick(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
 		try:
 			nick = msg[1]
+			if nick == ircnick:
+				sendMsg(chan,"I don't see how kicking myself is possible")
+				return False
 			del msg[0:2]
 			kick(chan,nick," ".join(msg))
 		except IndexError: 
 			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"kick <nick> [reason]")
+	def kickme(msg,chan,host):
+		kick(chan,host[0],"You told me to")
+	def banme(msg,chan,host):
+		mode(chan,"+b","*!*@"+host[2])
 	def mode(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
@@ -233,7 +271,6 @@ def mode(chan,mode,param=""):
 def who(nick):
 	global catch
 	send("WHO "+nick)
-	catch.append(
 
 def main():
 	while 1:
