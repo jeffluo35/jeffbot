@@ -42,6 +42,8 @@ proxyserver = None
 
 levels = {"unaffiliated/jeffl35": 10, "unaffiliated/iovoid": 9, "unaffiliated/bowserinator": 9}
 class commands:
+	def version(msg,chan,host):
+		sendMsg(chan,host[0]+": "+version)
 	def source(msg,chan,host):
 		sendMsg(chan,host[0]+": "+version)
 	def dot(msg,chan,host):
