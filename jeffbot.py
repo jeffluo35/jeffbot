@@ -163,7 +163,7 @@ class commands:
 			return False
 		try:
 			nick = msg[1]
-			if nick == ircnick:
+			if nick.lower() == ircnick.lower():
 				sendMsg(chan,"I don't see how kicking myself is possible")
 				return False
 			del msg[0:2]
