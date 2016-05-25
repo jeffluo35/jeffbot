@@ -67,6 +67,9 @@ class commands:
 	def sendto(msg,chan,host):
 		if not checklvl(chan,host,9):
 			return False
+		if msg[1].lower().endswith("serv"):
+			if not checklvl(chan,host,10):
+				return False
 		del msg[0]
 		chan = msg[0]
 		del msg[0]
