@@ -5,8 +5,9 @@ import socket
 import threading
 import re
 from importlib import reload
-from time import sleep
+from time import sleep,asctime
 import random
+import sys
 
 try:
 	from ezzybot.util.repl import Repl
@@ -23,9 +24,9 @@ ircchannels = "##powder-bots,##bowserinator,##jeffl35" # Use comma-separated lis
 try:
 	passfile = open("password", "r")
 	password = passfile.read()
+	passfile.close()
 except FileNotFoundError:
 	password = None
-passfile.close()
 ircnick = "Jeffbot"
 user = "jeffbot"
 name = "Jeff"
@@ -40,6 +41,8 @@ proxyserver = None
 
 levels = {"unaffiliated/jeffl35": 10, "unaffiliated/iovoid": 10, "unaffiliated/bowserinator": 10}
 class commands:
+	def source(msg,chan,host):
+		sendMsg(chan,host[0]+": "+version)
 	def dot(msg,chan,host):
 		sendMsg(chan,"...................................")
 	def echo(msg,chan,host):
@@ -233,8 +236,8 @@ def runlogic(head,msg):
 
 def send(data):
 	ircsock.send(bytes(data, 'UTF-8'))
-	data = data.strip('\n')
-	print(data)
+	data = data.strip('\r\n')
+	print(asctime()+" [SEND] "+data)
 
 def sendMsg(chan,msg):
 	if msg == "":
@@ -276,9 +279,9 @@ def main():
 	while 1:
 		rawdata = ircsock.recv(readbytes).decode('utf-8')
 		if rawdata != None:
-			print(rawdata)
-			data = rawdata.strip('\n\r').split("\n")
+			data = rawdata.strip('\r\n').split('\n')
 			for thing in data:
+				print(asctime()+" [RECV] "+thing)
 				datasplit = thing.split(":",2)
 				i = 0
 				for thing in datasplit:
@@ -314,7 +317,7 @@ def start():
 		ircsock.connect((ircserver, 6667))
 	print("Connected to server")
 	if password != None:
-		send("PASS "+password)
+		send("PASS "+password+"\n")
 	send("USER "+user+" 0 * :"+name+"\n")
 	send("NICK "+ircnick+"\n")
 	initialjoin = initjoin()
