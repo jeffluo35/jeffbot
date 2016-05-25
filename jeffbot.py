@@ -64,6 +64,8 @@ class commands:
 		sendMsg(chan, random.choice(excuses.excuses))
 	def moo(msg,chan,host):
 		sendMsg(chan,host[0]+": moooooooooOOOOOOOOOOOO!!!!!!!!!!")
+	def potato(msg,chan,host):
+		sendMsg(chan,"\x01ACTION is a potato\x01")
 	def sendto(msg,chan,host):
 		if not checklvl(chan,host,9):
 			return False
