@@ -62,6 +62,8 @@ class commands:
 		sendMsg(chan, "ping")
 	def excuse(msg,chan,host):
 		sendMsg(chan, random.choice(excuses.excuses))
+	def moo(msg,chan,host):
+		sendMsg(chan,host[0]+": moooooooooOOOOOOOOOOOO!!!!!!!!!!")
 	def sendto(msg,chan,host):
 		if not checklvl(chan,host,9):
 			return False
