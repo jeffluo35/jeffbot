@@ -40,7 +40,7 @@ proxyserver = None
 # Uncomment to use proxy server
 #proxyserver = "proxy.ccsd.net:80"
 
-levels = {"unaffiliated/jeffl35": 10, "unaffiliated/iovoid": 10, "unaffiliated/bowserinator": 10}
+levels = {"unaffiliated/jeffl35": 10, "unaffiliated/iovoid": 9, "unaffiliated/bowserinator": 9}
 class commands:
 	def source(msg,chan,host):
 		sendMsg(chan,host[0]+": "+version)
@@ -114,7 +114,12 @@ class commands:
 			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"setlvl [host] <level>")
 		except ValueError:
 			sendMsg(chan,"Incorrect syntax. Usage: "+cmdchar+"setlvl [host] <level>")
-			
+		except KeyError:
+			sendMsg(chan,"User does not exist in permissions database.")
+	def restart(msg,chan,host):
+		if not checklvl(chan,host,10):
+			return False
+		__import__("os").execv(__file__,__import__("sys").argv)
 	def op(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
