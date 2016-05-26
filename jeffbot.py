@@ -9,7 +9,7 @@ from time import sleep,asctime
 import random
 import subprocess
 import logger,excuses,config
-
+import queue
 try:
 	from ezzybot.util.repl import Repl
 	enablesandbox = True
@@ -289,15 +289,26 @@ class runlogic (threading.Thread):
 			pass
 
 def send(data):
-	ircsock.send(bytes(data, 'UTF-8'))
-	data = data.strip('\r\n')
-	logger.log(1,"[SEND] "+data)
+	with sendlock:
+		ircsock.send(bytes(data, 'UTF-8'))
+		data = data.strip('\r\n')
+		logger.log(1,"[SEND] "+data)
 
 def sendMsg(chan,msg):
 	if msg == "":
-		send("PRIVMSG "+chan+" :None\n")
-	else:
-		send("PRIVMSG "+chan+" :"+msg+"\n")
+		msg = " "
+	global sendMsgQueue
+	sendMsgQueue.put([chan,msg])
+
+class sendMessenger (threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+	def run(self):
+		global sendMsgQueue
+		while 1:
+			data = sendMsgQueue.get()
+			send("PRIVMSG "+data[0]+" :"+data[1]+"\n")
+			sleep(0.5)
 
 def sendNotice(nick,msg):
 	send("NOTICE "+nick+" :"+msg+"\n")
@@ -379,10 +390,12 @@ def start():
 		send("PASS "+config.password+"\n")
 	send("USER "+config.user+" 0 * :"+config.name+"\n")
 	send("NICK "+config.ircnick+"\n")
-	initialjoin = initjoin()
-	initialjoin.start()
+	initjoin().start()
+	sendMessenger().start()
 	main()
 
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+sendlock = threading.Lock()
+sendMsgQueue = queue.Queue()
+queuelock = threading.Lock()
 start()
