@@ -56,6 +56,15 @@ class commands:
 		chan = msg[0]
 		del msg[0]
 		sendMsg(chan," ".join(msg))
+	def nick(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		try:
+			config.ircnick = msg[1]
+			send("NICK "+msg[1]+"\n")
+			logger.log(2,host[0]+" changed bot nick to "+msg[1])
+		except IndexError:
+			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"nick <newnick>")
 	def py(msg,chan,host):
 		if not enablesandbox:
 			sendMsg(chan,"Sandbox not enabled")
@@ -242,29 +251,42 @@ class ctcp:
 	def version(nick):
 		sendNotice(nick,"\x01VERSION "+version+"\x01")
 
-def runlogic(head,msg):
-	if msg == [] or head == []:
-		return
-	chan = "none"
-	if len(head) > 1 and head[1] == "PRIVMSG":
-		chan = head[2]
-		host = re.split("[\!\@]",head[0])
-		if chan == config.ircnick: # for PMs
-			chan = host[0]
-		if len(msg) > 0 and msg[0].startswith(config.cmdchar):
-			msg[0] = msg[0].strip(config.cmdchar).lower()
-			try:
-				getattr(commands,msg[0])(msg,chan,host)
-			except AttributeError:
-				pass
-		if len(msg) > 0 and msg[0].startswith("\x01"):
-			msg[0] = msg[0].strip("\x01").lower()
-			try:
-				getattr(ctcp,msg[0])(host[0])
-			except AttributeError:
-				pass
-	if head[0] == "PING":
-		send("PONG :"+msg[0]+"\n")
+class runlogic (threading.Thread):
+	def __init__(self,head,msg):
+		threading.Thread.__init__(self)
+		self.head = head
+		self.msg = msg
+	def run(self):
+		if self.msg == [] or self.head == []:
+			return
+		chan = "none"
+		if len(self.head) > 1 and self.head[1] == "PRIVMSG":
+			chan = self.head[2]
+			host = re.split("[\!\@]",self.head[0])
+			if chan == config.ircnick: # for PMs
+				chan = host[0]
+			if len(self.msg) > 0 and self.msg[0].startswith(config.cmdchar):
+				self.msg[0] = self.msg[0].strip(config.cmdchar).lower()
+				try:
+					getattr(commands,self.msg[0])(self.msg,chan,host)
+				except AttributeError:
+					pass
+			if len(self.msg) > 0 and self.msg[0].startswith("\x01"):
+				self.msg[0] = self.msg[0].strip("\x01").lower()
+				try:
+					getattr(ctcp,self.msg[0])(host[0])
+				except AttributeError:
+					pass
+		if self.head[0] == "PING":
+			send("PONG :"+self.msg[0]+"\n")
+		try:
+			if self.head[1] == "433" and self.head[2] == "*" and self.head[3] == config.ircnick:
+				orignick = config.ircnick
+				config.ircnick += "_"
+				send("NICK "+config.ircnick+"\n")
+				logger.log(2,"Nickname "+orignick+" taken, using "+config.ircnick+" instead.")
+		except IndexError:
+			pass
 
 def send(data):
 	ircsock.send(bytes(data, 'UTF-8'))
@@ -328,7 +350,7 @@ def main():
 							i -= 1
 					i += 1
 				try:
-					runlogic(head,msg)
+					runlogic(head,msg).start()
 				except UnboundLocalError as e:
 					logger.log(3,"Not an IRC message, ignoring. Details: "+type(e).__name__+": "+str(e))
 	logger.log(5,"Connection closed!")
