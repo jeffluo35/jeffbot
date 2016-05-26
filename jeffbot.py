@@ -8,7 +8,7 @@ from importlib import reload
 from time import sleep,asctime
 import random
 import subprocess
-import logger,excuses
+import logger,excuses,config
 
 try:
 	from ezzybot.util.repl import Repl
@@ -19,28 +19,8 @@ except ImportError:
 	enablesandbox = False
 # Sadly, sandboxes are humongous security issues
 enablesandbox = False
-ircserver = "164.132.77.237"
-ircchannels = "##powder-bots,##bowserinator,##jeffl35" # Use comma-separated list for multiple channels
-# Make a file called "password" with your NickServ password in it
-try:
-	passfile = open("password", "r")
-	password = passfile.read()
-	passfile.close()
-except FileNotFoundError:
-	password = None
-ircnick = "Jeffbot"
-user = "jeffbot"
-name = "Jeff"
-joinwait = 2
-readbytes = 4096
-cmdchar = "|"
 version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
 
-proxyserver = None
-# Uncomment to use proxy server
-#proxyserver = "proxy.ccsd.net:80"
-
-levels = {"unaffiliated/jeffl35": 10, "unaffiliated/iovoid": 9, "unaffiliated/bowserinator": 9}
 class commands:
 	def version(msg,chan,host):
 		sendMsg(chan,host[0]+": "+version)
@@ -88,7 +68,7 @@ class commands:
 				sendMsg(chan,"Done")
 				sandboxinit = True
 			elif not sandboxinit:
-				sendMsg(chan,"Sandbox not initialized. Do "+cmdchar+"py init")
+				sendMsg(chan,"Sandbox not initialized. Do "+config.cmdchar+"py init")
 			else:
 				global sandbox
 				del msg[0]
@@ -102,7 +82,7 @@ class commands:
 				except Exception as e:
 					sendMsg(chan,str(type(e).__name__)+": "+str(e))
 		else:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"py <code> or "+cmdchar+"py init")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"py <code> or "+config.cmdchar+"py init")
 	def echoraw(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
@@ -111,18 +91,17 @@ class commands:
 	def setlvl(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
-		global levels
 		try:
 			if int(msg[2]) == 0:
-				del levels[msg[1]]
+				del config.levels[msg[1]]
 				sendMsg(chan,"Removed "+msg[1]+" from the permissions database")
 			else:
-				levels[msg[1]] = int(msg[2])
+				config.levels[msg[1]] = int(msg[2])
 				sendMsg(chan,"Permission level of "+msg[1]+" set to "+msg[2])
 		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"setlvl [host] <level>")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"setlvl [host] <level>")
 		except ValueError:
-			sendMsg(chan,"Incorrect syntax. Usage: "+cmdchar+"setlvl [host] <level>")
+			sendMsg(chan,"Incorrect syntax. Usage: "+config.cmdchar+"setlvl [host] <level>")
 		except KeyError:
 			sendMsg(chan,"User does not exist in permissions database.")
 	def restart(msg,chan,host):
@@ -140,7 +119,7 @@ class commands:
 		if not checklvl(chan,host,5):
 			return False
 		try:
-			if msg[1] == ircnick:
+			if msg[1] == config.ircnick:
 				sendMsg(chan,"Why would I do that?")
 				return False
 			mode(chan,"-o",msg[1])
@@ -165,13 +144,13 @@ class commands:
 			return False
 		try:
 			nick = msg[1]
-			if nick.lower() == ircnick.lower():
+			if nick.lower() == config.ircnick.lower():
 				sendMsg(chan,"I don't see how kicking myself is possible")
 				return False
 			del msg[0:2]
 			kick(chan,nick," ".join(msg))
 		except IndexError: 
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"kick <nick> [reason]")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"kick <nick> [reason]")
 	def kickme(msg,chan,host):
 		kick(chan,host[0],"You told me to")
 	def banme(msg,chan,host):
@@ -187,21 +166,21 @@ class commands:
 			else:
 				mode(chan,cmode)
 		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"mode <mode> [parameters]")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"mode <mode> [parameters]")
 	def ban(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
 		try:
 			mode(chan,"+b","*!*@"+msg[1])
 		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"ban <host>")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"ban <host>")
 	def unban(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
 		try:
 			mode(chan,"-b","*!*@"+msg[1])
 		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"unban <host>")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"unban <host>")
 	def kban(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
@@ -212,7 +191,7 @@ class commands:
 			mode(chan,"+b",host)
 			kick(chan,nick," ".join(msg))
 		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"kban <nick> <host> [reason]")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"kban <nick> <host> [reason]")
 			
 	def join(msg,chan,host):
 		if not checklvl(chan,host,6):
@@ -220,7 +199,7 @@ class commands:
 		try:
 			join(msg[1])
 		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"join <channel>")
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"join <channel>")
 	def part(msg,chan,host):
 		if not checklvl(chan,host,6):
 			return False
@@ -270,10 +249,10 @@ def runlogic(head,msg):
 	if len(head) > 1 and head[1] == "PRIVMSG":
 		chan = head[2]
 		host = re.split("[\!\@]",head[0])
-		if chan == ircnick: # for PMs
+		if chan == config.ircnick: # for PMs
 			chan = host[0]
-		if len(msg) > 0 and msg[0].startswith(cmdchar):
-			msg[0] = msg[0].strip(cmdchar).lower()
+		if len(msg) > 0 and msg[0].startswith(config.cmdchar):
+			msg[0] = msg[0].strip(config.cmdchar).lower()
 			try:
 				getattr(commands,msg[0])(msg,chan,host)
 			except AttributeError:
@@ -310,7 +289,7 @@ def part(chan):
 def checklvl(chan,host,lvl):
 	msg = ": You do not have enough permissions to use this command."
 	try:
-		if levels[host[2]] >= lvl:
+		if config.levels[host[2]] >= lvl:
 			return True
 		else:
 			sendMsg(chan,host[0]+msg)
@@ -319,7 +298,7 @@ def checklvl(chan,host,lvl):
 		sendMsg(chan,host[0]+msg)
 		return False
 
-def kick(chan,nick,reason=ircnick):
+def kick(chan,nick,reason=config.ircnick):
 	send("KICK "+chan+" "+nick+" :"+reason+"\n")
 
 def mode(chan,mode,param=""):
@@ -331,7 +310,7 @@ def who(nick):
 
 def main():
 	while 1:
-		rawdata = ircsock.recv(readbytes).decode('utf-8')
+		rawdata = ircsock.recv(config.readbytes).decode('utf-8')
 		if rawdata == "":
 			break
 		if rawdata != None:
@@ -358,27 +337,26 @@ def main():
 # Initially join channel(s)
 class initjoin (threading.Thread):
 	def run(self):
-		sleep(joinwait)
-		channels = ircchannels.split(",")
+		sleep(config.joinwait)
+		channels = config.ircchannels.split(",")
 		for chan in channels:
 			join(chan)
 
 # set up the connection
 def start():
 	logger.log(2,version)
-	global proxyserver
-	if proxyserver != None:
-		proxyserver = proxyserver.split(":")
+	if config.proxyserver != None:
+		proxyserver = config.proxyserver.split(":")
 		ircsock.connect((proxyserver[0], int(proxyserver[1])))
 		send("CONNECT "+ircserver+":6667\n\n")
-		sleep(5)
+		sleep(config.proxywait)
 	else:
-		ircsock.connect((ircserver, 6667))
+		ircsock.connect((config.ircserver, 6667))
 	logger.log(2,"Connected to server")
-	if password != None:
-		send("PASS "+password+"\n")
-	send("USER "+user+" 0 * :"+name+"\n")
-	send("NICK "+ircnick+"\n")
+	if config.password != None:
+		send("PASS "+config.password+"\n")
+	send("USER "+config.user+" 0 * :"+config.name+"\n")
+	send("NICK "+config.ircnick+"\n")
 	initialjoin = initjoin()
 	initialjoin.start()
 	main()
