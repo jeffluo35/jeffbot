@@ -22,6 +22,28 @@ enablesandbox = False
 version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
 
 class commands:
+	def login(msg,chan,host):
+		if chan.startswith("#"):
+			sendMsg(chan,host[0]+": "+"Not a good idea to show everybody your password.")
+		try:
+			if msg[1] in config.logins:
+				if config.logins[msg[1]][0] == msg[2]:
+					sendMsg(chan,host[0]+": "+"Login succeeded")
+					config.levels[host[2]] = config.logins[msg[1]][1]
+				else:
+					sendMsg(chan,host[0]+": "+"Username and/or password incorrect")
+			else:
+				sendMsg(chan,host[0]+": "+"Username and/or password incorrect")
+		except IndexError:
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"login <username> <password>")
+	def logout(msg,chan,host):
+		try:
+			del config.levels[host[2]]
+			sendMsg(chan,host[0]+": Successfully logged out")
+		except KeyError:
+			sendMsg(chan,host[0]+": You are not logged in")
+	def reload(msg,chan,host):
+		reload(config)
 	def version(msg,chan,host):
 		sendMsg(chan,host[0]+": "+version)
 	def source(msg,chan,host):
