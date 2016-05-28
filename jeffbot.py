@@ -10,6 +10,7 @@ import random
 import subprocess
 import logger,excuses,config
 import queue
+import hashlib
 try:
 	from ezzybot.util.repl import Repl
 	enablesandbox = True
@@ -27,7 +28,7 @@ class commands:
 			sendMsg(chan,host[0]+": "+"Not a good idea to show everybody your password.")
 		try:
 			if msg[1] in config.logins:
-				if config.logins[msg[1]][0] == msg[2]:
+				if config.logins[msg[1]][0] == hashlib.sha512(msg[2].encode('utf-8')).hexdigest():
 					sendMsg(chan,host[0]+": "+"Login succeeded")
 					config.levels[host[2]] = config.logins[msg[1]][1]
 				else:
@@ -114,6 +115,12 @@ class commands:
 					sendMsg(chan,str(type(e).__name__)+": "+str(e))
 		else:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"py <code> or "+config.cmdchar+"py init")
+	def flushq(msg,chan,host):
+		if not checklvl(chan,host,3):
+			return False
+		global sendMsgQueue
+		sendMsgQueue.queue.clear()
+		sendMsg(chan,"Send queue cleared")
 	def echoraw(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
@@ -371,8 +378,14 @@ def main():
 		if rawdata != None:
 			data = rawdata.strip('\r\n').split('\n')
 			for thing in data:
-				logger.log(1,"[RECV] "+thing)
 				datasplit = thing.split(":",2)
+				try:
+					if datasplit[2].startswith(config.cmdchar+"login"):
+						logger.log(1,"[RECV] :"+datasplit[1]+":[LOGIN INFORMATION]")
+					else:
+						logger.log(1,"[RECV] "+":".join(datasplit))
+				except IndexError:
+					logger.log(1,"[RECV] "+":".join(datasplit))
 				i = 0
 				for thing in datasplit:
 					if i % 2 == 1:
