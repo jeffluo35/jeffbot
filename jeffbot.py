@@ -1,28 +1,12 @@
 #!/usr/bin/env python3
 # jeffl35's IRC bot
 
-import socket
-import threading
-import re
-from importlib import reload
+import socket,threading,re,queue,random,subprocess,hashlib,sys,io,os,code
 from time import sleep,asctime
-import random
-import subprocess
 import logger,excuses,config
-import queue
-import hashlib
-try:
-	from ezzybot.util.repl import Repl
-	enablesandbox = True
-	sandboxinit = False
-	sandbox = "uninitialized"
-except ImportError:
-	enablesandbox = False
-# Sadly, sandboxes are humongous security issues
-enablesandbox = False
-version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
 
-class commands:
+version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
+class cmds:
 	def login(msg,chan,host):
 		if chan.startswith("#"):
 			sendMsg(chan,host[0]+": "+"Not a good idea to show everybody your password.")
@@ -43,8 +27,6 @@ class commands:
 			sendMsg(chan,host[0]+": Successfully logged out")
 		except KeyError:
 			sendMsg(chan,host[0]+": You are not logged in")
-	def reload(msg,chan,host):
-		reload(config)
 	def version(msg,chan,host):
 		sendMsg(chan,host[0]+": "+version)
 	def source(msg,chan,host):
@@ -88,33 +70,6 @@ class commands:
 			logger.log(2,host[0]+" changed bot nick to "+msg[1])
 		except IndexError:
 			sendMsg(chan,"Not enough arguments. Usage: "+cmdchar+"nick <newnick>")
-	def py(msg,chan,host):
-		if not enablesandbox:
-			sendMsg(chan,"Sandbox not enabled")
-			return False
-		if len(msg) > 1:
-			if msg[1].lower() == "init":
-				global sandbox
-				global sandboxinit
-				sandbox = Repl({"chan": chan, "msg": msg, "nick": nick})
-				sendMsg(chan,"Done")
-				sandboxinit = True
-			elif not sandboxinit:
-				sendMsg(chan,"Sandbox not initialized. Do "+config.cmdchar+"py init")
-			else:
-				global sandbox
-				del msg[0]
-				try:
-					output = sandbox.run(" ".join(msg)).split("\n")
-					del output[0]
-					for line in output:
-						sendMsg(chan,host[0]+": "+line)
-				except SystemExit:
-					sendMsg(chan,"Definitely not doing that")
-				except Exception as e:
-					sendMsg(chan,str(type(e).__name__)+": "+str(e))
-		else:
-			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"py <code> or "+config.cmdchar+"py init")
 	def flushq(msg,chan,host):
 		if not checklvl(chan,host,3):
 			return False
@@ -145,7 +100,7 @@ class commands:
 	def restart(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
-		__import__("os").execv(__file__,__import__("sys").argv)
+		os.execv(__file__,sys.argv)
 	def op(msg,chan,host):
 		if not checklvl(chan,host,5):
 			return False
@@ -230,7 +185,38 @@ class commands:
 			kick(chan,nick," ".join(msg))
 		except IndexError:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"kban <nick> <host> [reason]")
-			
+	def dorelay(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		global dorelay
+		dorelay = not dorelay
+		sendMsg(chan,"dorelay set to "+str(dorelay))
+	def listrelay(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		for relay in relays:
+			sendMsg(chan,str(relays.index(relay))+": "+str(relay))
+	def addrelay(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		if len(msg) < 3:
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"addrelay <chan1> <chan2> [chan3] [chan4]...")
+		else:
+			global relays
+			del msg[0]
+			relays.append(msg)
+			sendMsg(chan,"Done")
+	def delrelay(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		global relays
+		try:
+			del relays[int(msg[1])]
+			sendMsg(chan,"Done")
+		except IndexError:
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"delrelay <relay index>, where relay index is the index given by "+config.cmdchar+"listrelay")
+		except ValueError:
+			sendMsg(chan,"Syntax error. Usage: "+config.cmdchar+"delrelay <relay index>, where relay index is the index given by "+config.cmdchar+"listrelay")
 	def join(msg,chan,host):
 		if not checklvl(chan,host,6):
 			return False
@@ -257,6 +243,30 @@ class commands:
 			logger.log(2,"Quitting. Requested by "+host[0]+" (hostname "+host[2]+") with reason mooo")
 		sleep(2)
 		exit()
+	def py(msg,chan,host):
+		if not checklvl(chan,host,10):
+			return False
+		global console
+		if len(msg) > 1:
+			if msg[1].lower() == "init":
+				vars = globals().copy()
+				vars.update(locals())
+				console = code.InteractiveConsole(vars)
+				sendMsg(chan,"Console initialized")
+			else:
+				if console == None:
+					cmds.py([msg[0],'init'],chan,host)
+				del msg[0]
+				sys.stdout = out = io.StringIO()
+				sys.stderr = out
+				console.push(" ".join(msg))
+				sys.stdout,sys.stderr = sys.__stdout__,sys.__stderr__
+				result = out.getvalue().split('\n')
+				del result[-1]
+				for line in result:
+					sendMsg(chan,line)
+		else:
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"py <python code>, use "+config.cmdchar+"py<space> for new line")
 	def eval(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
@@ -297,15 +307,21 @@ class runlogic (threading.Thread):
 			if len(self.msg) > 0 and self.msg[0].startswith(config.cmdchar):
 				self.msg[0] = self.msg[0].strip(config.cmdchar).lower()
 				try:
-					getattr(commands,self.msg[0])(self.msg,chan,host)
+					getattr(cmds,self.msg[0])(self.msg,chan,host)
 				except AttributeError:
 					pass
-			if len(self.msg) > 0 and self.msg[0].startswith("\x01"):
+			elif len(self.msg) > 0 and self.msg[0].startswith("\x01"):
 				self.msg[0] = self.msg[0].strip("\x01").lower()
 				try:
 					getattr(ctcp,self.msg[0])(host[0])
 				except AttributeError:
 					pass
+			elif dorelay:
+				for relay in relays:
+					if chan in relay:
+						for channel in relay:
+							if chan != channel:
+								sendMsg(channel,"<"+host[0]+"@"+chan+"> "+" ".join(self.msg))
 		if self.head[0] == "PING":
 			send("PONG :"+self.msg[0]+"\n")
 		try:
@@ -337,7 +353,7 @@ class sendMessenger (threading.Thread):
 		while 1:
 			data = sendMsgQueue.get()
 			send("PRIVMSG "+data[0]+" :"+data[1]+"\n")
-			sleep(0.5)
+			sleep(0.7)
 
 def sendNotice(nick,msg):
 	send("NOTICE "+nick+" :"+msg+"\n")
@@ -389,7 +405,7 @@ def main():
 				i = 0
 				for thing in datasplit:
 					if i % 2 == 1:
-						msg = thing.split()
+						msg = thing.split(" ")
 					else:
 						head = thing.split()
 						if head == []:
@@ -433,4 +449,7 @@ ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sendlock = threading.Lock()
 sendMsgQueue = queue.Queue()
 queuelock = threading.Lock()
+dorelay = False
+relays = []
+console = None
 start()

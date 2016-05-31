@@ -2,6 +2,7 @@
 # Logging module for jeffbot
 
 from time import asctime
+import sys
 
 def log(lvl,msg):
 	if lvl == 0:
@@ -16,4 +17,4 @@ def log(lvl,msg):
 		l = "ERROR"
 	elif lvl == 5:
 		l = "CRITICAL"
-	print(asctime()+" ["+l+"] "+msg)
+	sys.__stdout__.write(asctime()+" ["+l+"] "+msg+"\n")
