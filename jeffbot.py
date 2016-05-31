@@ -2,7 +2,7 @@
 # jeffl35's IRC bot
 
 import socket,threading,re,queue,random,subprocess,hashlib,sys,io,os,code
-from time import sleep,asctime
+from time import sleep
 import logger,excuses,config
 
 version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
@@ -73,7 +73,6 @@ class cmds:
 	def flushq(msg,chan,host):
 		if not checklvl(chan,host,3):
 			return False
-		global sendMsgQueue
 		sendMsgQueue.queue.clear()
 		sendMsg(chan,"Send queue cleared")
 	def echoraw(msg,chan,host):
@@ -130,7 +129,7 @@ class cmds:
 			return False
 		try:
 			mode(chan,"+v",msg[1])
-		except:
+		except IndexError:
 			mode(chan,"+v",host[0])
 	def kick(msg,chan,host):
 		if not checklvl(chan,host,5):
@@ -142,7 +141,7 @@ class cmds:
 				return False
 			del msg[0:2]
 			kick(chan,nick," ".join(msg))
-		except IndexError: 
+		except IndexError:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"kick <nick> [reason]")
 	def kickme(msg,chan,host):
 		kick(chan,host[0],"You told me to")
@@ -202,14 +201,12 @@ class cmds:
 		if len(msg) < 3:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"addrelay <chan1> <chan2> [chan3] [chan4]...")
 		else:
-			global relays
 			del msg[0]
 			relays.append(msg)
 			sendMsg(chan,"Done")
 	def delrelay(msg,chan,host):
 		if not checklvl(chan,host,9):
 			return False
-		global relays
 		try:
 			del relays[int(msg[1])]
 			sendMsg(chan,"Done")
@@ -249,9 +246,9 @@ class cmds:
 		global console
 		if len(msg) > 1:
 			if msg[1].lower() == "init":
-				vars = globals().copy()
-				vars.update(locals())
-				console = code.InteractiveConsole(vars)
+				allvars = globals().copy()
+				allvars.update(locals())
+				console = code.InteractiveConsole(allvars)
 				sendMsg(chan,"Console initialized")
 			else:
 				if console == None:
@@ -342,14 +339,12 @@ def send(data):
 def sendMsg(chan,msg):
 	if msg == "":
 		msg = " "
-	global sendMsgQueue
 	sendMsgQueue.put([chan,msg])
 
 class sendMessenger (threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
 	def run(self):
-		global sendMsgQueue
 		while 1:
 			data = sendMsgQueue.get()
 			send("PRIVMSG "+data[0]+" :"+data[1]+"\n")
@@ -381,10 +376,6 @@ def kick(chan,nick,reason=config.ircnick):
 
 def mode(chan,mode,param=""):
 	send("MODE "+chan+" "+mode+" "+param+"\n")
-
-def who(nick):
-	global catch
-	send("WHO "+nick)
 
 def main():
 	while 1:

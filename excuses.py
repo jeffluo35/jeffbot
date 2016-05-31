@@ -469,5 +469,5 @@ excuses = ["clock speed",
 	"DNS server drank too much and had a hiccup",
 	"Your machine had the fuses in backwards."
 	"Attempted to read from write-only memory!"]
-	
+
 logger.log(2,"Loaded excuses")
