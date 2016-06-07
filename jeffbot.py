@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # jeffl35's IRC bot
 
-import socket,threading,re,queue,random,subprocess,hashlib,sys,io,os,code
+import socket,threading,re,queue,subprocess,hashlib,sys,io,os,code
 from time import sleep
-import logger,excuses,config
+import logger,config
 
 version = "Jeffbot v0.2-alpha https://github.com/jeffluo35/jeffbot"
 class cmds:
@@ -45,12 +45,6 @@ class cmds:
 		sendMsg(chan, "pong")
 	def pong(msg,chan,host):
 		sendMsg(chan, "ping")
-	def excuse(msg,chan,host):
-		sendMsg(chan, random.choice(excuses.excuses))
-	def moo(msg,chan,host):
-		sendMsg(chan,host[0]+": moooooooooOOOOOOOOOOOO!!!!!!!!!!")
-	def potato(msg,chan,host):
-		sendMsg(chan,"\x01ACTION is a potato\x01")
 	def sendto(msg,chan,host):
 		if not checklvl(chan,host,9):
 			return False
@@ -99,91 +93,7 @@ class cmds:
 	def restart(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
-		os.execv(__file__,sys.argv)
-	def op(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			mode(chan,"+o",msg[1])
-		except IndexError:
-			mode(chan,"+o",host[0])
-	def deop(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			if msg[1] == config.ircnick:
-				sendMsg(chan,"Why would I do that?")
-				return False
-			mode(chan,"-o",msg[1])
-		except IndexError:
-			mode(chan,"-o",host[0])
-	def voice(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			mode(chan,"+v",msg[1])
-		except IndexError:
-			mode(chan,"+v",host[0])
-	def devoice(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			mode(chan,"+v",msg[1])
-		except IndexError:
-			mode(chan,"+v",host[0])
-	def kick(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			nick = msg[1]
-			if nick.lower() == config.ircnick.lower():
-				sendMsg(chan,"I don't see how kicking myself is possible")
-				return False
-			del msg[0:2]
-			kick(chan,nick," ".join(msg))
-		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"kick <nick> [reason]")
-	def kickme(msg,chan,host):
-		kick(chan,host[0],"You told me to")
-	def banme(msg,chan,host):
-		mode(chan,"+b","*!*@"+host[2])
-	def mode(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			cmode = msg[1]
-			del msg[0:2]
-			if len(msg) > 0:
-				mode(chan,cmode," ".join(msg))
-			else:
-				mode(chan,cmode)
-		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"mode <mode> [parameters]")
-	def ban(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			mode(chan,"+b","*!*@"+msg[1])
-		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"ban <host>")
-	def unban(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			mode(chan,"-b","*!*@"+msg[1])
-		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"unban <host>")
-	def kban(msg,chan,host):
-		if not checklvl(chan,host,5):
-			return False
-		try:
-			nick = msg[1]
-			host = msg[2]
-			del msg[0:3]
-			mode(chan,"+b",host)
-			kick(chan,nick," ".join(msg))
-		except IndexError:
-			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"kban <nick> <host> [reason]")
+		os.execv("run.py",sys.argv)
 	def dorelay(msg,chan,host):
 		if not checklvl(chan,host,9):
 			return False
@@ -202,7 +112,7 @@ class cmds:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"addrelay <chan1> <chan2> [chan3] [chan4]...")
 		else:
 			del msg[0]
-			relays.append(msg)
+			relays.append([channel.lower() for channel in msg])
 			sendMsg(chan,"Done")
 	def delrelay(msg,chan,host):
 		if not checklvl(chan,host,9):
@@ -214,6 +124,32 @@ class cmds:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"delrelay <relay index>, where relay index is the index given by "+config.cmdchar+"listrelay")
 		except ValueError:
 			sendMsg(chan,"Syntax error. Usage: "+config.cmdchar+"delrelay <relay index>, where relay index is the index given by "+config.cmdchar+"listrelay")
+	def addsilentchan(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		if len(msg) < 2:
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"addsilentchan <chan1> [chan2]...")
+			return False
+		del msg[0]
+		relaymuted.append([channel.lower() for channel in msg])
+		sendMsg(chan,"Done")
+	def listsilentchan(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		i = 0
+		for channel in relaymuted:
+			sendMsg(chan,str(i)+": "+str(channel))
+			i += 1
+	def delsilentchan(msg,chan,host):
+		if not checklvl(chan,host,9):
+			return False
+		try:
+			del relaymuted[int(msg[1])]
+			sendMsg(chan,"Done")
+		except IndexError:
+			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"delsilentchan <channel index>, where channel index is the index given by "+config.cmdchar+"listsilentchan")
+		except ValueError:
+			sendMsg(chan,"Syntax error. Usage: "+config.cmdchar+"delsilentchan <channel index>, where channel index is the index given by "+config.cmdchar+"listsilentchan")
 	def join(msg,chan,host):
 		if not checklvl(chan,host,6):
 			return False
@@ -228,6 +164,12 @@ class cmds:
 			part(msg[1])
 		except IndexError:
 			part(chan)
+	def gtfo(msg,chan,host):
+		if not checklvl(chan,host,6):
+			return False
+		sendMsg(chan,"\x01ACTION runs\x01")
+		sleep(0.5)
+		part(chan)
 	def quit(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
@@ -240,6 +182,25 @@ class cmds:
 			logger.log(2,"Quitting. Requested by "+host[0]+" (hostname "+host[2]+") with reason mooo")
 		sleep(2)
 		exit()
+	def eval(msg,chan,host):
+		if not checklvl(chan,host,10):
+			return False
+		if len(msg) > 1:
+			try:
+				del msg[0]
+				sendMsg(chan,str(eval(" ".join(msg))))
+			except Exception as e:
+				sendMsg(chan,type(e).__name__+": "+str(e))
+	def exec(msg,chan,host):
+		if not checklvl(chan,host,10):
+			return False
+		if len(msg) > 1:
+				del msg[0]
+				result = subprocess.check_output(" ".join(msg)+"; return 0",shell=True,stderr=subprocess.STDOUT).decode('utf-8')
+				result = result.split("\n")
+				del result[-1]
+				for line in result:
+					sendMsg(chan,line)
 	def py(msg,chan,host):
 		if not checklvl(chan,host,10):
 			return False
@@ -264,25 +225,6 @@ class cmds:
 					sendMsg(chan,line)
 		else:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"py <python code>, use "+config.cmdchar+"py<space> for new line")
-	def eval(msg,chan,host):
-		if not checklvl(chan,host,10):
-			return False
-		if len(msg) > 1:
-			try:
-				del msg[0]
-				sendMsg(chan,str(eval(" ".join(msg))))
-			except Exception as e:
-				sendMsg(chan,type(e).__name__+": "+str(e))
-	def exec(msg,chan,host):
-		if not checklvl(chan,host,10):
-			return False
-		if len(msg) > 1:
-				del msg[0]
-				result = subprocess.check_output(" ".join(msg)+"; return 0",shell=True,stderr=subprocess.STDOUT).decode('utf-8')
-				result = result.split("\n")
-				del result[-1]
-				for line in result:
-					sendMsg(chan,line)
 class ctcp:
 	def version(nick):
 		sendNotice(nick,"\x01VERSION "+version+"\x01")
@@ -315,10 +257,11 @@ class runlogic (threading.Thread):
 					pass
 			elif dorelay:
 				for relay in relays:
-					if chan in relay:
-						for channel in relay:
-							if chan != channel:
-								sendMsg(channel,"<"+host[0]+"@"+chan+"> "+" ".join(self.msg))
+					if chan.lower() in relay:
+						if not chan.lower() in relaymuted:
+							for channel in relay:
+								if chan != channel:
+									sendMsg(channel,"<"+host[0]+"@"+chan+"> "+" ".join(self.msg))
 		if self.head[0] == "PING":
 			send("PONG :"+self.msg[0]+"\n")
 		try:
@@ -339,7 +282,13 @@ def send(data):
 def sendMsg(chan,msg):
 	if msg == "":
 		msg = " "
-	sendMsgQueue.put([chan,msg])
+	maxlen = 500 - len(chan)
+	msglen = sys.getsizeof(msg)
+	if msglen > maxlen:
+		for i in range(0, len(msg), 500):
+			sendMsgQueue.put([chan,msg[i:i+500]])
+	else:
+		sendMsgQueue.put([chan,msg])
 
 class sendMessenger (threading.Thread):
 	def __init__(self):
@@ -359,6 +308,12 @@ def join(chan):
 def part(chan):
 	send("PART "+chan+"\n")
 
+def kick(chan,nick,reason=config.ircnick):
+	send("KICK "+chan+" "+nick+" :"+reason+"\n")
+
+def mode(chan,mode,param=""):
+	send("MODE "+chan+" "+mode+" "+param+"\n")
+
 def checklvl(chan,host,lvl):
 	msg = ": You do not have enough permissions to use this command."
 	try:
@@ -371,12 +326,13 @@ def checklvl(chan,host,lvl):
 		sendMsg(chan,host[0]+msg)
 		return False
 
-def kick(chan,nick,reason=config.ircnick):
-	send("KICK "+chan+" "+nick+" :"+reason+"\n")
+def cmdhook(name,cmdname=None):
+	if cmdname == None:
+		setattr(cmds,name.__name__,name)
+	else:
+		setattr(cmds,cmdname,name)
 
-def mode(chan,mode,param=""):
-	send("MODE "+chan+" "+mode+" "+param+"\n")
-
+cmdhook(cmds.py,'>>')
 def main():
 	while 1:
 		rawdata = ircsock.recv(config.readbytes).decode('utf-8')
@@ -439,8 +395,7 @@ def start():
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sendlock = threading.Lock()
 sendMsgQueue = queue.Queue()
-queuelock = threading.Lock()
 dorelay = False
 relays = []
+relaymuted = []
 console = None
-start()
