@@ -29,3 +29,5 @@ try:
 	from logins import * # Optionally store passwords in a file
 except ImportError:
 	pass
+
+running = True

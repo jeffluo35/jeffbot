@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # jeffl35's IRC bot
 
-import socket,threading,re,queue,subprocess,hashlib,sys,io,os,code
+import socket,threading,re,queue,subprocess,hashlib,sys,io,os,code,importlib
 from time import sleep
 import logger,config
 
@@ -27,6 +27,10 @@ class cmds:
 			sendMsg(chan,host[0]+": Successfully logged out")
 		except KeyError:
 			sendMsg(chan,host[0]+": You are not logged in")
+	def reload(msg,chan,host):
+		importlib.reload(config)
+		reloadevent.set()
+		sendMsg(chan,'Reloading modules...')
 	def version(msg,chan,host):
 		sendMsg(chan,host[0]+": "+version)
 	def source(msg,chan,host):
@@ -294,7 +298,7 @@ class sendMessenger (threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
 	def run(self):
-		while 1:
+		while config.running:
 			data = sendMsgQueue.get()
 			send("PRIVMSG "+data[0]+" :"+data[1]+"\n")
 			sleep(0.7)
@@ -333,37 +337,42 @@ def cmdhook(name,cmdname=None):
 		setattr(cmds,cmdname,name)
 
 cmdhook(cmds.py,'>>')
-def main():
-	while 1:
-		rawdata = ircsock.recv(config.readbytes).decode('utf-8')
-		if rawdata == "":
-			break
-		if rawdata != None:
-			data = rawdata.strip('\r\n').split('\n')
-			for thing in data:
-				datasplit = thing.split(":",2)
-				try:
-					if datasplit[2].startswith(config.cmdchar+"login"):
-						logger.log(1,"[RECV] :"+datasplit[1]+":[LOGIN INFORMATION]")
-					else:
+class main(threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+	def run(self):
+		while 1:
+			rawdata = ircsock.recv(config.readbytes).decode('utf-8')
+			if rawdata == "":
+				break
+			if rawdata != None:
+				data = rawdata.strip('\r\n').split('\n')
+				for thing in data:
+					datasplit = thing.split(":",2)
+					try:
+						if datasplit[2].startswith(config.cmdchar+"login"):
+							logger.log(1,"[RECV] :"+datasplit[1]+":[LOGIN INFORMATION]")
+						else:
+							logger.log(1,"[RECV] "+":".join(datasplit))
+					except IndexError:
 						logger.log(1,"[RECV] "+":".join(datasplit))
-				except IndexError:
-					logger.log(1,"[RECV] "+":".join(datasplit))
-				i = 0
-				for thing in datasplit:
-					if i % 2 == 1:
-						msg = thing.split(" ")
-					else:
-						head = thing.split()
-						if head == []:
-							i -= 1
-					i += 1
-				try:
-					runlogic(head,msg).start()
-				except UnboundLocalError as e:
-					logger.log(3,"Not an IRC message, ignoring. Details: "+type(e).__name__+": "+str(e))
-	logger.log(5,"Connection closed!")
-	exit()
+					i = 0
+					for thing in datasplit:
+						if i % 2 == 1:
+							msg = thing.split(" ")
+						else:
+							head = thing.split()
+							if head == []:
+								i -= 1
+						i += 1
+					try:
+						runlogic(head,msg).start()
+					except UnboundLocalError as e:
+						logger.log(3,"Not an IRC message, ignoring. Details: "+type(e).__name__+": "+str(e))
+		logger.log(5,"Connection closed!")
+		config.running = False
+		sendMsgQueue.put(['',''])
+		exit()
 
 # Initially join channel(s)
 class initjoin (threading.Thread):
@@ -390,12 +399,16 @@ def start():
 	send("NICK "+config.ircnick+"\n")
 	initjoin().start()
 	sendMessenger().start()
-	main()
+	main().start()
 
-ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+	ircsock
+except NameError:
+	ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sendlock = threading.Lock()
 sendMsgQueue = queue.Queue()
 dorelay = False
 relays = []
 relaymuted = []
+reloadevent = threading.Event()
 console = None
