@@ -230,8 +230,10 @@ class cmds:
 		else:
 			sendMsg(chan,"Not enough arguments. Usage: "+config.cmdchar+"py <python code>, use "+config.cmdchar+"py<space> for new line")
 class ctcp:
-	def version(nick):
+	def version(nick,msg):
 		sendNotice(nick,"\x01VERSION "+version+"\x01")
+	def ping(nick,msg):
+		sendNotice(nick,"\x01PING "+msg[1]+"\x01")
 
 class runlogic (threading.Thread):
 	def __init__(self,head,msg):
@@ -248,15 +250,17 @@ class runlogic (threading.Thread):
 			if chan == config.ircnick: # for PMs
 				chan = host[0]
 			if len(self.msg) > 0 and self.msg[0].startswith(config.cmdchar):
-				self.msg[0] = self.msg[0].strip(config.cmdchar).lower()
+				self.msg[0] = self.msg[0].lstrip(config.cmdchar).lower()
 				try:
 					getattr(cmds,self.msg[0])(self.msg,chan,host)
 				except AttributeError:
-					pass
+					if config.commandnotfound:
+						sendMsg(chan,host[0]+': The command '+self.msg[0]+' was not found.')
 			elif len(self.msg) > 0 and self.msg[0].startswith("\x01"):
-				self.msg[0] = self.msg[0].strip("\x01").lower()
+				self.msg[0] = self.msg[0].lstrip("\x01").lower()
+				self.msg[-1] = self.msg[-1].rstrip("\x01")
 				try:
-					getattr(ctcp,self.msg[0])(host[0])
+					getattr(ctcp,self.msg[0])(host[0],self.msg)
 				except AttributeError:
 					pass
 			elif dorelay:
@@ -280,17 +284,17 @@ class runlogic (threading.Thread):
 def send(data):
 	with sendlock:
 		ircsock.send(bytes(data, 'UTF-8'))
-		data = data.strip('\r\n')
+		data = data.rstrip('\r\n')
 		logger.log(1,"[SEND] "+data)
 
 def sendMsg(chan,msg):
 	if msg == "":
 		msg = " "
-	maxlen = 500 - len(chan)
+	maxlen = 449 - len(chan)
 	msglen = sys.getsizeof(msg)
 	if msglen > maxlen:
-		for i in range(0, len(msg), 500):
-			sendMsgQueue.put([chan,msg[i:i+500]])
+		for i in range(0, len(msg), maxlen):
+			sendMsgQueue.put([chan,msg[i:i+maxlen]])
 	else:
 		sendMsgQueue.put([chan,msg])
 
@@ -346,7 +350,7 @@ class main(threading.Thread):
 			if rawdata == "":
 				break
 			if rawdata != None:
-				data = rawdata.strip('\r\n').split('\n')
+				data = rawdata.rstrip('\r\n').split('\n')
 				for thing in data:
 					datasplit = thing.split(":",2)
 					try:
@@ -372,6 +376,7 @@ class main(threading.Thread):
 		logger.log(5,"Connection closed!")
 		config.running = False
 		sendMsgQueue.put(['',''])
+		reloadevent.set()
 		exit()
 
 # Initially join channel(s)
@@ -401,10 +406,7 @@ def start():
 	sendMessenger().start()
 	main().start()
 
-try:
-	ircsock
-except NameError:
-	ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sendlock = threading.Lock()
 sendMsgQueue = queue.Queue()
 dorelay = False

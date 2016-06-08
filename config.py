@@ -16,6 +16,7 @@ name = "Jeff"
 joinwait = 2
 readbytes = 4096
 cmdchar = "|"
+commandnotfound = False # Complain if a command is not found
 
 proxyserver = None
 # Uncomment to use proxy server
