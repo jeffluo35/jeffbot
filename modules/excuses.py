@@ -474,4 +474,5 @@ excuses = ["clock speed",
 def excuse(msg,chan,host):
 	sendMsg(chan,random.choice(excuses))
 cmdhook(excuse)
+helphook('excuse','Prints a BOFH excuse. Takes no arguments.')
 logger.log(2,'Loaded excuses module')
