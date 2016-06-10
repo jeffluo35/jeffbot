@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # Jeffbot configuration
 
-ircserver = "164.132.77.237"
+ircserver = "164.132.77.237:6697"
+ssl = True # Whether to use ssl
 ircchannels = "##bowserinator,##jeffl35,##powder-bots" # Use comma-separated list for multiple channels
 # Make a file called "password" with your NickServ password in it
 try:

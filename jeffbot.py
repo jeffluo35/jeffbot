@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # jeffl35's IRC bot
 
-import socket,threading,re,queue,sys,os,importlib
+import socket,threading,re,queue,sys,os,importlib,ssl
 from time import sleep
 import logger,config
 
@@ -200,13 +200,21 @@ class initjoin (threading.Thread):
 # set up the connection
 def start():
 	logger.log(2,version)
+	if config.ssl:
+		global ircsock
+		ircsock = ssl.wrap_socket(sock=ircsock,do_handshake_on_connect=False)
 	if config.proxyserver != None:
 		proxyserver = config.proxyserver.split(":")
 		ircsock.connect((proxyserver[0], int(proxyserver[1])))
-		send("CONNECT "+ircserver+":6667\n\n")
+		send("CONNECT "+config.ircserver+"\r\n\r\n")
 		sleep(config.proxywait)
+		if config.ssl:
+			ircsock.do_handshake()
 	else:
-		ircsock.connect((config.ircserver, 6667))
+		ircserver = config.ircserver.split(":")
+		ircsock.connect((ircserver[0], int(ircserver[1])))
+		if config.ssl:
+			ircsock.do_handshake()
 	logger.log(2,"Connected to server")
 	if config.password != None:
 		send("PASS "+config.password+"\n")
@@ -223,5 +231,5 @@ dorelay = False
 relays = []
 relaymuted = []
 reloadevent = threading.Event()
-helpfile = {"echo": "Repeats the message with a zero-width space at the beginning, Usage: "+config.cmdchar+"echo <message>", "secho": "Repeats the message insecurely (requires level 5), Usage: "+config.cmdchar+"secho <message>", "ping": "Tells the bot to send a pong, has no arguments", "pong": "<AegisServer2> It's ping you moron", "reload": "Reloads the bot's modules, has no arguments"}
+helpfile = {"echo": "Repeats the message with a zero-width space at the beginning, Usage: "+config.cmdchar+"echo <message>", "secho": "Repeats the message insecurely (requires level 5), Usage: "+config.cmdchar+"secho <message>", "ping": "Tells the bot to send a pong, has no arguments", "pong": "<AegisServer2> It's ping you moron.", "reload": "Reloads the bot's modules, has no arguments"}
 console = None
