@@ -18,6 +18,7 @@ joinwait = 2
 readbytes = 4096
 cmdchar = "|"
 commandnotfound = False # Complain if a command is not found
+kickrejoin = True # Rejoin a channel if kicked
 
 proxyserver = None
 # Uncomment to use proxy server
@@ -33,3 +34,4 @@ except ImportError:
 	pass
 
 running = True
+ignorelist = []

@@ -44,6 +44,30 @@ def devoice(msg,chan,host):
 		mode(chan,"+v",host[0])
 cmdhook(devoice)
 helphook('devoice','Devoices a person in the current channel, requires level 5. When no arguments are given, devoices you. Usage: {}devoice [nick]')
+def stab(msg,chan,host):
+	if not checklvl(chan,host,5): return False
+	try:
+		userhost = gethost(msg[1])
+		if not userhost == False:
+			mode(chan,"+q",userhost)
+		else:
+			sendMsg(chan,'No such nick')
+	except IndexError:
+		sendMsg(chan,"Not enough arguments. See help")
+cmdhook(stab)
+helphook('stab','Quiets somebody in a channel, requires level 5. Usage: {}stab <nick>')
+def unstab(msg,chan,host):
+	if not checklvl(chan,host,5): return False
+	try:
+		userhost = gethost(msg[1])
+		if not userhost == False:
+			mode(chan,"-q",userhost)
+		else:
+			sendMsg(chan,'No such nick')
+	except IndexError:
+		sendMsg(chan,"Not enough arguments. See help")
+cmdhook(unstab)
+helphook('unstab','Unquiets somebody in a channel, requires level 5. Usage: {}unstab <nick>')
 def ckick(msg,chan,host):
 	if not checklvl(chan,host,5):
 		return False
@@ -103,12 +127,15 @@ def kban(msg,chan,host):
 		return False
 	try:
 		nick = msg[1]
-		host = msg[2]
-		del msg[0:3]
-		mode(chan,"+b",host)
-		kick(chan,nick," ".join(msg))
+		userhost = gethost(msg[1])
+		del msg[0:2]
+		if not userhost == False:
+			mode(chan,"+b",userhost)
+			kick(chan,nick," ".join(msg))
+		else:
+			sendMsg(chan,'No such nick')
 	except IndexError:
 		sendMsg(chan,"Not enough arguments. See help")
 cmdhook(kban)
-helphook('kban','Kickbans a user, requires level 5. Usage: {}kban <nick> <host> [reason]')
+helphook('kban','Kickbans a user, requires level 5. Usage: {}kban <nick> [reason]')
 logger.log(2,'Loaded channel operator module')

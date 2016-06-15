@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # jeffl35's IRC bot
 
-import socket,threading,re,queue,sys,os,importlib,ssl
+import socket,threading,re,queue,sys,os,ssl
 from time import sleep
 import logger,config
 
@@ -20,7 +20,6 @@ class cmds:
 	def pong(msg,chan,host):
 		sendMsg(chan, "ping")
 	def reload(msg,chan,host):
-		importlib.reload(config)
 		reloadevent.set()
 		sendMsg(chan,'Reloading modules...')
 	def help(msg,chan,host):
@@ -43,50 +42,67 @@ class ctcp:
 	def ping(nick,msg):
 		sendNotice(nick,"\x01PING "+msg[1]+"\x01")
 
-class runlogic (threading.Thread):
+class runlogic(threading.Thread):
 	def __init__(self,head,msg):
 		threading.Thread.__init__(self)
 		self.head = head
 		self.msg = msg
+		self.ai = ai
 	def run(self):
 		if self.msg == [] or self.head == []:
 			return
 		chan = "none"
-		if len(self.head) > 1 and self.head[1] == "PRIVMSG":
-			chan = self.head[2]
-			host = re.split("[\!\@]",self.head[0])
-			if chan == config.ircnick: # for PMs
-				chan = host[0]
-			if len(self.msg) > 0 and self.msg[0].startswith(config.cmdchar):
-				self.msg[0] = self.msg[0].lstrip(config.cmdchar).lower()
-				try:
-					getattr(cmds,self.msg[0])(self.msg,chan,host)
-				except AttributeError:
-					if config.commandnotfound:
-						sendMsg(chan,host[0]+': The command '+self.msg[0]+' was not found.')
-			elif len(self.msg) > 0 and self.msg[0].startswith("\x01"):
-				self.msg[0] = self.msg[0].lstrip("\x01").lower()
-				self.msg[-1] = self.msg[-1].rstrip("\x01")
-				try:
-					getattr(ctcp,self.msg[0])(host[0],self.msg)
-				except AttributeError:
-					pass
-			elif dorelay:
-				for relay in relays:
-					if chan.lower() in relay:
-						if not chan.lower() in relaymuted:
-							for channel in relay:
-								if chan != channel:
-									sendMsg(channel,"<"+host[0]+"@"+chan+"> "+" ".join(self.msg))
-		if self.head[0] == "PING":
+		if len(self.head) > 1:
+			if self.head[1] == "PRIVMSG":
+				chan = self.head[2]
+				host = re.split("[\!\@]",self.head[0])
+				if host[2] in config.ignorelist:
+					return False
+				if chan == config.ircnick: # for PMs
+					chan = host[0]
+				if len(self.msg) > 0:
+					if self.msg[0].startswith(config.cmdchar):
+						self.msg[0] = self.msg[0].lstrip(config.cmdchar).lower()
+						try:
+							if not self.msg[0].startswith('__'):
+								getattr(cmds,self.msg[0])(self.msg,chan,host)
+						except AttributeError:
+							if config.commandnotfound:
+								sendMsg(chan,host[0]+': The command '+self.msg[0]+' was not found.')
+					elif ( not self.ai == None ) and self.msg[0].lower().startswith(config.ircnick.lower()):
+						ai = __import__('modules.'+self.ai,globals(),locals(),[self.ai])
+						del self.msg[0]
+						sendMsg(chan,'['+host[0]+'] '+ai.process(self.msg))
+					elif self.msg[0].startswith("\x01"):
+						self.msg[0] = self.msg[0].lstrip("\x01").lower()
+						self.msg[-1] = self.msg[-1].rstrip("\x01")
+						try:
+							getattr(ctcp,self.msg[0])(host[0],self.msg)
+						except AttributeError:
+							pass
+					elif dorelay:
+						for relay in relays:
+							if chan.lower() in relay:
+								if not chan.lower() in relaymuted:
+									for channel in relay:
+										if chan != channel:
+											sendMsg(channel,"<"+host[0]+"@"+chan+"> "+" ".join(self.msg))
+			elif self.head[1] == "311" and len(self.head) == 7:
+				hostlist[self.head[3]] = self.head[5]
+			elif self.head[1] == "401" and len(self.head) == 4:
+				hostlist[self.head[3]] = False
+		elif self.head[0] == "PING":
 			send("PONG :"+self.msg[0]+"\n")
+
 		try:
 			if self.head[1] == "433" and self.head[2] == "*" and self.head[3] == config.ircnick:
 				orignick = config.ircnick
 				config.ircnick += "_"
 				send("NICK "+config.ircnick+"\n")
 				logger.log(2,"Nickname "+orignick+" taken, using "+config.ircnick+" instead.")
-		except IndexError:
+			elif self.head[1] == "KICK" and self.head[3] == config.ircnick and config.kickrejoin:
+				join(self.head[2])
+		except IndexError as e:
 			pass
 
 def send(data):
@@ -129,6 +145,17 @@ def kick(chan,nick,reason=config.ircnick):
 
 def mode(chan,mode,param=""):
 	send("MODE "+chan+" "+mode+" "+param+"\n")
+
+def gethost(nick):
+	send("WHOIS "+nick+'\n')
+	while config.running:
+		for user in hostlist:
+			if user.lower() == nick.lower():
+				host = hostlist[user]
+				del hostlist[user]
+				return host
+		else:
+			sleep(0.25)
 
 def checklvl(chan,host,lvl):
 	msg = ": You do not have enough permissions to use this command."
@@ -232,4 +259,6 @@ relays = []
 relaymuted = []
 reloadevent = threading.Event()
 helpfile = {"echo": "Repeats the message with a zero-width space at the beginning, Usage: "+config.cmdchar+"echo <message>", "secho": "Repeats the message insecurely (requires level 5), Usage: "+config.cmdchar+"secho <message>", "ping": "Tells the bot to send a pong, has no arguments", "pong": "<AegisServer2> It's ping you moron.", "reload": "Reloads the bot's modules, has no arguments"}
+hostlist = {}
 console = None
+ai = None

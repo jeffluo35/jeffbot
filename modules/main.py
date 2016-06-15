@@ -190,6 +190,51 @@ def cpart(msg,chan,host):
 		part(chan)
 cmdhook(cpart,'part')
 helphook('part','Parts a channel, requires level 6. Usage: {}part <channel>')
+def cgethost(msg,chan,host):
+	try:
+		userhost = gethost(msg[1])
+		if userhost == False:
+			sendMsg(chan,host[0]+': Nick does not exist')
+		else:
+			sendMsg(chan,host[0]+': '+userhost)
+	except IndexError:
+		sendMsg(chan,'Not enough arguments. See help')
+cmdhook(cgethost,'gethost')
+helphook('gethost','Gets the host of a nick. Usage: {}gethost <nick>')
+def ignore(msg,chan,host):
+	if not checklvl(chan,host,10):
+		return False
+	try:
+		userhost = gethost(msg[1])
+		if userhost == False:
+			sendMsg(chan,'Nick does not exist')
+			return False
+		if not userhost in config.ignorelist:
+			config.ignorelist.append(userhost)
+			sendMsg(chan,host[0]+': Added '+userhost+' to the ignore list')
+		else:
+			sendMsg(chan,host[0]+': '+userhost+' is already in the ignore list!')
+	except IndexError:
+		sendMsg(chan,'Not enough arguments. See help')
+cmdhook(ignore)
+helphook('ignore','Completely ignore a host, requires level 10. Usage: {}ignore <nick>')
+def unignore(msg,chan,host):
+	if not checklvl(chan,host,10):
+		return False
+	try:
+		userhost = gethost(msg[1])
+		if userhost == False:
+			sendMsg(chan,'Nick does not exist')
+			return False
+		if userhost in config.ignorelist:
+			del config.ignorelist[config.ignorelist.index(userhost)]
+			sendMsg(chan,host[0]+': Unignored '+userhost)
+		else:
+			sendMsg(chan,host[0]+': User not in ignore list')
+	except IndexError:
+		sendMsg(chan,'Not enough arguments. See help')
+cmdhook(unignore)
+helphook('unignore','Unignore a host, requires level 10. Usage: {}unignore <nick>')
 def gtfo(msg,chan,host):
 	if not checklvl(chan,host,6):
 		return False
