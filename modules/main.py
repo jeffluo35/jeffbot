@@ -41,6 +41,10 @@ def dot(msg,chan,host):
 	sendMsg(chan,"...................................")
 cmdhook(dot)
 helphook('dot','Prints lots of dots. Takes no arguments.')
+def dotdotdot(msg,chan,host):
+	sendMsg(chan,"……………………………………………………………………………………………")
+cmdhook(dotdotdot)
+helphook('dotdotdot','Prints more dots than {}dot. Takes no arguments.')
 def sendto(msg,chan,host):
 	if not checklvl(chan,host,9):
 		return False

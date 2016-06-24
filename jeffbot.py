@@ -182,8 +182,12 @@ class main(threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
 	def run(self):
+		global ircsock
 		while 1:
-			rawdata = ircsock.recv(config.readbytes).decode('utf-8')
+			try:
+				rawdata = ircsock.recv(config.readbytes).decode('utf-8', 'ignore')
+			except TimeoutError:
+				break
 			if rawdata == "":
 				break
 			if rawdata != None:
@@ -210,11 +214,18 @@ class main(threading.Thread):
 						runlogic(head,msg).start()
 					except UnboundLocalError as e:
 						logger.log(3,"Not an IRC message, ignoring. Details: "+type(e).__name__+": "+str(e))
-		logger.log(5,"Connection closed!")
-		config.running = False
-		sendMsgQueue.put(['',''])
-		reloadevent.set()
-		exit()
+		if config.reconnect:
+			logger.log(5,"Connection closed! Restarting...")
+			ircsock.close()
+			ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			start(True)
+			return False
+		else:
+			logger.log(5,"Connection closed! Exiting!")
+			config.running = False
+			sendMsgQueue.put(['',''])
+			reloadevent.set()
+			exit()
 
 # Initially join channel(s)
 class initjoin (threading.Thread):
@@ -225,7 +236,7 @@ class initjoin (threading.Thread):
 			join(chan)
 
 # set up the connection
-def start():
+def start(reconnect=False):
 	logger.log(2,version)
 	if config.ssl:
 		global ircsock
@@ -248,7 +259,8 @@ def start():
 	send("USER "+config.user+" 0 * :"+config.name+"\n")
 	send("NICK "+config.ircnick+"\n")
 	initjoin().start()
-	sendMessenger().start()
+	if not reconnect:
+		sendMessenger().start()
 	main().start()
 
 ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

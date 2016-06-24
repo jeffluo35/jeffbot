@@ -3,7 +3,7 @@
 
 ircserver = "164.132.77.237:6697"
 ssl = True # Whether to use ssl
-ircchannels = "##bowserinator,##jeffl35,##powder-bots" # Use comma-separated list for multiple channels
+ircchannels = "##bowserinator,##jeffl35,##powder-bots,#hbot" # Use comma-separated list for multiple channels
 # Make a file called "password" with your NickServ password in it
 try:
 	passfile = open("password", "r")
@@ -19,6 +19,7 @@ readbytes = 4096
 cmdchar = "|"
 commandnotfound = False # Complain if a command is not found
 kickrejoin = True # Rejoin a channel if kicked
+reconnect = True # If bot is disconnected, reconnect
 
 proxyserver = None
 # Uncomment to use proxy server
